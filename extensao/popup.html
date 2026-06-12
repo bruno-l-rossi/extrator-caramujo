@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --bg: #121212;
+    --card: #1d1d1d;
+    --text: #f2f2f2;
+    --muted: #9a9a9a;
+    --accent: #e8542f;
+    --accent2: #2f9e68;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", sans-serif; }
+  body { width: 320px; background: var(--bg); color: var(--text); padding: 16px; }
+  h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px; }
+  #titulo { font-size: 12px; color: var(--muted); margin-bottom: 14px; min-height: 15px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .botoes { display: flex; gap: 10px; margin-bottom: 14px; }
+  button.dl {
+    flex: 1; padding: 14px 0; border: none; border-radius: 10px; cursor: pointer;
+    color: #fff; font-size: 14px; font-weight: 700;
+  }
+  button.dl small { display: block; font-weight: 400; font-size: 10px; opacity: 0.8; margin-top: 2px; }
+  #btnMp3 { background: var(--accent2); }
+  #btnMp4 { background: var(--accent); }
+  button.dl:hover { filter: brightness(1.15); }
+  button.dl:disabled { opacity: 0.4; cursor: default; filter: none; }
+  label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+  select {
+    width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #333;
+    background: var(--card); color: var(--text); font-size: 12px; margin-bottom: 12px;
+  }
+  #status { font-size: 11px; color: var(--muted); min-height: 14px; }
+  #status.erro { color: #ff7a6b; }
+  #status.ok { color: #6fd49a; }
+</style>
+</head>
+<body>
+  <h1>EXTRATOR CARAMUJO</h1>
+  <div id="titulo">Carregando…</div>
+
+  <div class="botoes">
+    <button id="btnMp3" class="dl">Áudio<small>MP3 · 192 kbps</small></button>
+    <button id="btnMp4" class="dl">Vídeo<small>MP4</small></button>
+  </div>
+
+  <label for="pasta">Salvar em</label>
+  <select id="pasta">
+    <option value="">Downloads</option>
+    <option value="Samples/">Samples → Music/@rideblan33/Samples</option>
+    <option value="Inspiracoes/">Inspiração → Music/@rideblan33/Inspiration</option>
+  </select>
+
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>
