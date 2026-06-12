@@ -1,81 +1,92 @@
 # Extrator Caramujo
 
-Extensão do Chrome, 100% local, sem servidor. Com um vídeo do YouTube aberto, clica no ícone e escolhe: **MP3** (192 kbps) ou **MP4**. Vem junto um mover do macOS que leva os arquivos direto pras suas pastas em Music/@rideblan33.
+Baixa o áudio (MP3) ou o vídeo (MP4) de qualquer vídeo do YouTube aberto na aba. Duas peças: a extensão do Chrome (o botão) e um servidor local no teu Mac (yt-dlp + ffmpeg, que faz o trabalho pesado). Tudo roda na tua máquina.
 
-## Instalar a extensão (uma vez só)
+## Por que tem servidor agora
 
-1. Abre `chrome://extensions` no Chrome.
-2. Liga o **Modo do desenvolvedor** (canto superior direito).
-3. Clica em **Carregar sem compactação** e seleciona a pasta `extensao/` que está aqui dentro.
-4. Fixa o ícone na barra (puxa pelo ícone de quebra-cabeça).
+A versão anterior tentava baixar direto pela extensão. Bateu no teto: o YouTube cifra o áudio de quase todo vídeo e pede login pra confirmar que você não é robô. Quebrar isso exige rodar o player do YouTube, que muda toda semana. O yt-dlp resolve isso com um time atualizando sem parar, e o ffmpeg converte MP3/MP4 de verdade. Então a extensão virou só o botão; quem baixa é o servidor.
 
-Se você já tinha instalado a versão anterior: remove ela em `chrome://extensions` e carrega de novo, porque a pasta do projeto mudou de nome.
+Ganho: MP3 real, MP4 em qualquer qualidade (1080p, 4K), e não quebra quando o YouTube muda. Quando precisar de manutenção, é só `yt-dlp -U` no terminal, sem mexer no código.
 
-## Instalar o mover (uma vez só)
+## Instalar (2 passos, uma vez só)
 
-O Chrome só deixa extensão gravar dentro de Downloads. O mover resolve isso: um agente nativo do macOS (launchd) vigia as subpastas `Downloads/Samples` e `Downloads/Inspiracoes` e, segundos depois que um arquivo cai ali, move ele pro destino final.
+### 1. O servidor
 
 No Terminal:
 
 ```
-bash "/Users/bruno-l-rossi/Documents/Claude Cowork/OUTPUTS/extrator-caramujo/mover/instalar.sh"
+bash "/Users/bruno-l-rossi/Documents/Claude Cowork/OUTPUTS/extrator-caramujo/servidor/instalar.sh"
 ```
 
-O instalador cria as pastas que faltarem e ativa o agente. Pra remover depois, roda o `desinstalar.sh` da mesma pasta.
+Ele instala o yt-dlp e o ffmpeg, cria as pastas em Music/@rideblan33 e sobe o servidor. No fim mostra `{"ok": true, "ytdlp": true, "ffmpeg": true}`: é isso que você quer ver.
 
-### Como o mover funciona
+Precisa do Homebrew pro ffmpeg. Se não tiver, instala em https://brew.sh e roda o instalar de novo.
 
-- O launchd (mecanismo nativo do macOS, sem app rodando em background) observa as 2 subpastas de Downloads.
-- Qualquer arquivo completo que aparecer ali é movido em 2 ou 3 segundos. Downloads em andamento (`.crdownload`) são ignorados até terminarem.
-- Vale pra qualquer arquivo que cair nessas subpastas, não só os da extensão. Se você arrastar um WAV pra `Downloads/Samples` no Finder, ele vai pra Music também. Como essas subpastas só existem por causa da extensão, na prática é ela que alimenta.
-- Se já existir arquivo com o mesmo nome no destino, o novo ganha um sufixo de hora em vez de sobrescrever.
+### 2. A extensão
 
-### Mapa das pastas
+1. Abre `chrome://extensions`.
+2. Liga o **Modo do desenvolvedor** (canto superior direito).
+3. **Carregar sem compactação** e seleciona a pasta `extensao/`.
+4. Fixa o ícone na barra.
 
-| Opção no popup | Passagem (Downloads) | Destino final |
-|---|---|---|
-| Downloads | ~/Downloads | fica lá mesmo |
-| Samples | ~/Downloads/Samples | ~/Music/@rideblan33/Samples |
-| Inspiração | ~/Downloads/Inspiracoes | ~/Music/@rideblan33/Inspiration |
-
-Pra mudar um destino no futuro: edita os 2 caminhos no fim do `mover/mover-caramujo.sh` e roda o `instalar.sh` de novo.
+Se já tinha uma versão antiga instalada, remove ela antes (o manifest mudou bastante).
 
 ## Usar
 
-1. Abre um vídeo no YouTube (Shorts também funciona).
+1. Abre um vídeo no YouTube (Shorts e Live também).
 2. Clica no ícone do Extrator Caramujo.
-3. Escolhe o destino e clica em **Áudio** ou **Vídeo**.
+3. Escolhe a pasta e clica em **Áudio** ou **Vídeo**.
 
-A escolha de pasta fica salva pra próxima vez.
+Se o servidor estiver fora do ar, o popup avisa na hora que você abre. A pasta escolhida fica salva.
 
-## Sobre a API do YouTube
+O popup mostra uma barra de progresso enquanto o yt-dlp trabalha. É normal levar de alguns segundos a um minuto, dependendo do tamanho do vídeo: o servidor só responde quando termina de baixar e converter. A barra é uma estimativa por tempo (não dá pra ler o progresso real do yt-dlp pela arquitetura atual), mas serve pra mostrar que está rolando, não travado.
 
-A extensão fala com a API interna do YouTube por 3 rotas diferentes (clientes iOS, Android e TV), com fallback automático: se uma rota quebrar, ela tenta a próxima sozinha. Isso absorve boa parte das mudanças que o YouTube faz.
+Pode fechar e reabrir o popup no meio do download: o estado fica guardado no background, então ele volta mostrando a barra na posição certa em vez de recomeçar do zero.
 
-O que não dá pra automatizar: quando o YouTube muda a estrutura da API em si (acontece algumas vezes por ano), as 3 rotas caem juntas e o código precisa de ajuste manual. Ferramentas como o yt-dlp resolvem isso com um time de voluntários soltando atualização toda semana; uma extensão caseira não tem esse luxo. Então sim, nesse caso me aciona: aparece o erro "YouTube bloqueou a extração" no popup, você me chama, eu atualizo. Se um dia isso virar incômodo frequente, a saída é a versão com app local usando yt-dlp, que se atualiza sozinho com um comando.
+## As pastas
 
-## Outras limitações
+| Opção no popup | Onde salva |
+|---|---|
+| Downloads | ~/Downloads |
+| Samples | ~/Music/@rideblan33/Samples |
+| Inspiration | ~/Music/@rideblan33/Inspiration |
 
-**Qualidade do MP4.** O YouTube só entrega vídeo+áudio juntos num arquivo só até 360p (às vezes 720p). Acima disso ele separa as trilhas, e juntar exige ffmpeg, que não roda dentro de extensão. Pra 1080p+, mesmo caminho: versão com app local.
+Agora salva direto no destino final, sem passar por Downloads (o servidor escreve onde quiser na tua máquina, coisa que a extensão sozinha não podia). Pra mudar ou adicionar um caminho: edita o dicionário `DESTINOS` no topo do `servidor/servidor_caramujo.py` e reinicia o servidor (`launchctl unload` e `load` do plist, ou só reinicia o Mac).
 
-**Vídeos longos no MP3.** A conversão roda na memória do navegador. Beat e música de até uns 20 minutos vai tranquilo; podcast de 3 horas pode pesar.
+## O servidor no dia a dia
 
-**Uso pessoal.** Baixar do YouTube vai contra os termos da plataforma. Referência e estudo no estúdio é uma coisa; redistribuir ou soltar sample sem liberar direito é outra. Isso fica contigo.
+- Sobe sozinho no login (launchd, igual ao mover de antes). Não precisa abrir nada.
+- Escuta só em `127.0.0.1:8765`, ou seja, só a tua máquina alcança. Nada exposto pra rede.
+- Só aceita pedido vindo da extensão do Chrome.
+- Log em `~/.caramujo/servidor.log` se algo der errado.
+- Pra remover tudo: `bash servidor/desinstalar.sh`.
+
+## Manutenção
+
+Quando um download falhar com erro de "Unable to extract" ou parecido, é o yt-dlp desatualizado. Conserto numa linha:
+
+```
+python3 -m pip install --user --upgrade yt-dlp --break-system-packages
+```
+
+Esse é o ponto inteiro de ter migrado: a manutenção virou um comando que você mesmo roda, em vez de me acionar pra reescrever a extensão.
+
+## Uso pessoal
+
+Baixar do YouTube vai contra os termos da plataforma. Referência e estudo no estúdio é uma coisa; redistribuir ou soltar sample sem liberar direito é outra. Isso fica contigo.
 
 ## Estrutura
 
 ```
-extensao/             # carregar esta pasta no Chrome
-├── manifest.json     # permissões e config
-├── popup.html/js     # a janelinha com os 2 botões
-├── background.js     # busca os streams na API do YouTube
-├── offscreen.html/js # converte o áudio pra MP3 (lamejs)
-├── lib/lame.min.js   # encoder MP3
+extensao/             # carregar no Chrome
+├── manifest.json
+├── popup.html/js     # o botão, manda a URL pro servidor
+├── background.js     # repassa pro localhost:8765
 └── icons/
 
-mover/                # leva os arquivos pra Music/@rideblan33
+servidor/             # o que baixa de verdade
 ├── instalar.sh       # roda uma vez no Terminal
 ├── desinstalar.sh
-├── mover-caramujo.sh # o script que move (destinos editáveis aqui)
-└── com.caramujo.mover.plist
+├── servidor_caramujo.py   # yt-dlp + ffmpeg (destinos editáveis no topo)
+└── com.caramujo.servidor.plist
 ```

@@ -34,6 +34,16 @@
   #status { font-size: 11px; color: var(--muted); min-height: 14px; }
   #status.erro { color: #ff7a6b; }
   #status.ok { color: #6fd49a; }
+
+  #barraWrap {
+    height: 6px; background: #2a2a2a; border-radius: 4px; overflow: hidden;
+    margin-bottom: 8px; display: none;
+  }
+  #barra {
+    height: 100%; width: 0%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width 0.4s ease;
+  }
 </style>
 </head>
 <body>
@@ -41,17 +51,18 @@
   <div id="titulo">Carregando…</div>
 
   <div class="botoes">
-    <button id="btnMp3" class="dl">Áudio<small>MP3 · 192 kbps</small></button>
+    <button id="btnMp3" class="dl">Áudio<small>MP3 · alta qualidade</small></button>
     <button id="btnMp4" class="dl">Vídeo<small>MP4</small></button>
   </div>
 
   <label for="pasta">Salvar em</label>
   <select id="pasta">
     <option value="">Downloads</option>
-    <option value="Samples/">Samples → Music/@rideblan33/Samples</option>
-    <option value="Inspiracoes/">Inspiração → Music/@rideblan33/Inspiration</option>
+    <option value="Samples/">Samples</option>
+    <option value="Inspiracoes/">Inspiration</option>
   </select>
 
+  <div id="barraWrap"><div id="barra"></div></div>
   <div id="status"></div>
   <script src="popup.js"></script>
 </body>
