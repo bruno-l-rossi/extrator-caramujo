@@ -1,14 +1,18 @@
 # Extrator Caramujo
 
-Baixa o áudio (MP3) ou o vídeo (MP4) de qualquer vídeo do YouTube aberto na aba. Duas peças: a extensão do Chrome (o botão) e um servidor local no teu Mac (yt-dlp + ffmpeg, que faz o trabalho pesado). Tudo roda na tua máquina.
+Baixa áudio (WAV ou MP3) ou vídeo (MP4) de qualquer vídeo do YouTube aberto na aba. Duas peças: a extensão do Chrome (os botões) e um servidor no teu Mac (yt-dlp, ffmpeg e deno fazem o trabalho pesado). Tudo roda na tua máquina.
 
-## Por que tem servidor agora
+## O que mudou na v4
 
-A versão anterior tentava baixar direto pela extensão. Bateu no teto: o YouTube cifra o áudio de quase todo vídeo e pede login pra confirmar que você não é robô. Quebrar isso exige rodar o player do YouTube, que muda toda semana. O yt-dlp resolve isso com um time atualizando sem parar, e o ffmpeg converte MP3/MP4 de verdade. Então a extensão virou só o botão; quem baixa é o servidor.
+- **Três botões por intenção.** Sample (WAV), Referência (MP3) e Vídeo (MP4 H.264, abre no Final Cut). Cada um já sabe a pasta.
+- **Fila.** Clica em quantos vídeos quiser. Baixa um por vez, dá pra cancelar o atual ou tirar da fila.
+- **Atalhos e clique direito.** Baixa sem abrir o popup, até de um link na busca do YouTube.
+- **Menos 403.** O servidor usa o yt-dlp nightly, se atualiza sozinho e, se o YouTube recusar, tenta outros caminhos antes de desistir.
+- **Sabe de onde veio cada arquivo.** Guarda URL, canal e data de tudo que baixa.
+- **Aguenta reinício.** Se o servidor cair no meio, o popup avisa e limpa os restos.
+- **Pastas pelas Opções**, sem editar código.
 
-Ganho: MP3 real, MP4 em qualquer qualidade (1080p, 4K), e não quebra quando o YouTube muda. Quando precisar de manutenção, é só `yt-dlp -U` no terminal, sem mexer no código.
-
-## Instalar (2 passos, uma vez só)
+## Instalar (do zero ou vindo da v3)
 
 ### 1. O servidor
 
@@ -18,75 +22,98 @@ No Terminal:
 bash "/Users/bruno-l-rossi/Documents/Claude Cowork/OUTPUTS/extrator-caramujo/servidor/instalar.sh"
 ```
 
-Ele instala o yt-dlp e o ffmpeg, cria as pastas em Music/@rideblan33 e sobe o servidor. No fim mostra `{"ok": true, "ytdlp": true, "ffmpeg": true}`: é isso que você quer ver.
+Ele instala ffmpeg e deno pelo Homebrew (se faltarem), baixa o yt-dlp nightly pra `~/.caramujo/bin` e sobe o servidor. No fim tem que aparecer `ffmpeg True | js True`. Rodar de novo é seguro, e é o jeito de aplicar qualquer mudança no `servidor_caramujo.py`.
 
-Precisa do Homebrew pro ffmpeg. Se não tiver, instala em https://brew.sh e roda o instalar de novo.
+Precisa do Homebrew. Se não tiver, instala em https://brew.sh.
 
 ### 2. A extensão
 
-1. Abre `chrome://extensions`.
-2. Liga o **Modo do desenvolvedor** (canto superior direito).
-3. **Carregar sem compactação** e seleciona a pasta `extensao/`.
-4. Fixa o ícone na barra.
+A v4 tem ID fixo, e o servidor só aceita esse ID. Por isso:
 
-Se já tinha uma versão antiga instalada, remove ela antes (o manifest mudou bastante).
+1. Abre `chrome://extensions`.
+2. Remove o Extrator Caramujo antigo, se tiver.
+3. Liga o **Modo do desenvolvedor**, clica em **Carregar sem compactação** e escolhe a pasta `extensao/`.
+4. Fixa o ícone na barra e aceita as notificações.
+
+Se o popup disser que o servidor não reconhece a extensão, é porque ficou a versão antiga carregada. Repete o passo 2.
 
 ## Usar
 
-1. Abre um vídeo no YouTube (Shorts e Live também).
-2. Clica no ícone do Extrator Caramujo.
-3. Escolhe a pasta e clica em **Áudio** ou **Vídeo**.
+Abre um vídeo e clica no ícone.
 
-Se o servidor estiver fora do ar, o popup avisa na hora que você abre. A pasta escolhida fica salva.
+| Botão | Formato | Pasta padrão |
+|---|---|---|
+| Sample | WAV, direto do áudio do YouTube | Samples |
+| Referência | MP3 (V2, uns 190 kbps) | Inspiration |
+| Vídeo | MP4 H.264 até 1080p | Downloads |
+| Vídeo na máxima qualidade (em "Mais opções") | MP4 com o que o YouTube tiver, até AV1 e 4K | Downloads |
 
-O popup mostra uma barra de progresso enquanto o yt-dlp trabalha. É normal levar de alguns segundos a um minuto, dependendo do tamanho do vídeo: o servidor só responde quando termina de baixar e converter. A barra é uma estimativa por tempo (não dá pra ler o progresso real do yt-dlp pela arquitetura atual), mas serve pra mostrar que está rolando, não travado.
+O WAV mantém a taxa de amostragem da fonte (quase sempre 48 kHz). O FL Studio converte na importação.
 
-Pode fechar e reabrir o popup no meio do download: o estado fica guardado no background, então ele volta mostrando a barra na posição certa em vez de recomeçar do zero.
+**Atalhos** (mudam em `chrome://extensions/shortcuts`): Option+Shift+S sample, Option+Shift+R referência, Option+Shift+V vídeo. Valem pra aba aberta.
 
-## As pastas
+**Clique direito** na página de um vídeo ou num link do YouTube: "Caramujo: sample", "referência" ou "vídeo".
 
-| Opção no popup | Onde salva |
-|---|---|
-| Downloads | ~/Downloads |
-| Samples | ~/Music/@rideblan33/Samples |
-| Inspiration | ~/Music/@rideblan33/Inspiration |
+**Já baixou esse?** O popup avisa e oferece mostrar no Finder ou baixar de novo.
 
-Agora salva direto no destino final, sem passar por Downloads (o servidor escreve onde quiser na tua máquina, coisa que a extensão sozinha não podia). Pra mudar ou adicionar um caminho: edita o dicionário `DESTINOS` no topo do `servidor/servidor_caramujo.py` e reinicia o servidor (`launchctl unload` e `load` do plist, ou só reinicia o Mac).
+**Fora do YouTube** o popup mostra um campo pra colar o link, mais a lista dos últimos downloads.
 
-## O servidor no dia a dia
+**Pastas, resolução e login do Chrome** ficam em Opções (link no popup).
 
-- Sobe sozinho no login (launchd, igual ao mover de antes). Não precisa abrir nada.
-- Escuta só em `127.0.0.1:8765`, ou seja, só a tua máquina alcança. Nada exposto pra rede.
-- Só aceita pedido vindo da extensão do Chrome.
-- Log em `~/.caramujo/servidor.log` se algo der errado.
-- Pra remover tudo: `bash servidor/desinstalar.sh`.
+## De onde veio cada arquivo
 
-## Manutenção
+Todo download vira uma linha em `~/Music/@rideblan33/origens.jsonl`: data, URL, título, canal, duração, perfil, pasta e caminho do arquivo. O Finder também mostra a URL em "De onde veio" (Get Info). Serve pra achar a fonte de um sample quando precisar liberar o direito.
 
-Quando um download falhar com erro de "Unable to extract" ou parecido, é o yt-dlp desatualizado. Conserto numa linha:
+## Se der erro
+
+1. Clica em **Testar** no rodapé do popup. Ele roda um download de teste e mostra versão do yt-dlp, runtime JS e o que o YouTube respondeu. Copia o relatório e cola numa conversa comigo.
+2. O servidor já tenta sozinho, nesta ordem: padrão, sem cache, yt-dlp atualizado, outros clientes do player, IPv4 e (se ligado) login do Chrome. O que funcionar vira o primeiro da próxima vez.
+3. 403 que não passa: liga o login do Chrome nas Opções, ou no botão que aparece junto do erro. Na primeira vez o macOS pergunta se o python pode acessar "Chrome Safe Storage": Permitir sempre. Isso também libera vídeo com restrição de idade.
+4. O log fica em `~/.caramujo/servidor.log`:
 
 ```
-python3 -m pip install --user --upgrade yt-dlp --break-system-packages
+tail -50 ~/.caramujo/servidor.log
 ```
 
-Esse é o ponto inteiro de ter migrado: a manutenção virou um comando que você mesmo roda, em vez de me acionar pra reescrever a extensão.
+5. O popup mostra "servidor desatualizado"? Roda o `instalar.sh` de novo.
 
-## Uso pessoal
+## Como funciona
 
-Baixar do YouTube vai contra os termos da plataforma. Referência e estudo no estúdio é uma coisa; redistribuir ou soltar sample sem liberar direito é outra. Isso fica contigo.
+- O servidor escuta só em `127.0.0.1:8765`. Aceita pedido da extensão com o ID fixo (vem da `key` do `manifest.json`) e confere o cabeçalho `Host`, o que barra site tentando chegar nele.
+- Só baixa URL de vídeo do YouTube, e só pra pastas dentro do teu usuário (ou `/Volumes`).
+- O yt-dlp nightly atualiza no login e a cada 24 h. Se a atualização falhar (rede ainda subindo, por exemplo), tenta de novo em 30 min.
+- Download travado sem escrever nada por 3 min é encerrado. Processo órfão do ffmpeg morre junto.
+- Estado, fila e últimos downloads ficam em `~/.caramujo/estado.json`. Configuração em `~/.caramujo/config.json`.
+
+## Testes
+
+```
+python3 -m unittest discover -s tests
+```
+
+Rodam sem internet. Usam um yt-dlp falso pra testar fila, tentativas, cancelamento e travamento. O que depende do Mac (launchd, Finder, seletor de pasta, login do Chrome) a gente confere na mão.
 
 ## Estrutura
 
 ```
-extensao/             # carregar no Chrome
-├── manifest.json
-├── popup.html/js     # o botão, manda a URL pro servidor
-├── background.js     # repassa pro localhost:8765
+extensao/               # carregar no Chrome
+├── manifest.json       # ID fixo (key), atalhos
+├── popup.html/js       # os 3 botões, fila, recentes
+├── background.js       # % no ícone, notificações, atalhos, clique direito
+├── opcoes.html/js      # pastas, resolução, login do Chrome
+├── comum.js            # funções compartilhadas e BUILD_ESPERADO
 └── icons/
 
-servidor/             # o que baixa de verdade
-├── instalar.sh       # roda uma vez no Terminal
-├── desinstalar.sh
-├── servidor_caramujo.py   # yt-dlp + ffmpeg (destinos editáveis no topo)
+servidor/
+├── servidor_caramujo.py   # fila, yt-dlp, perfis, origens, config
+├── instalar.sh / desinstalar.sh
 └── com.caramujo.servidor.plist
+
+tests/test_servidor.py
+CHANGELOG.md
+PLANO-v4.md             # plano de trabalho e registro de progresso (pra IA retomar)
 ```
+
+## Uso pessoal
+
+Baixar do YouTube vai contra os termos da plataforma. Referência e estudo no estúdio é uma coisa. Soltar sample sem liberar o direito é outra. Isso fica contigo, e o `origens.jsonl` existe pra te ajudar nisso.

@@ -1,146 +1,340 @@
-// Popup: identifica o vídeo da aba, dispara o download e mostra o progresso.
-// O estado real mora no background; o popup só reflete ele. Assim dá pra
-// fechar e reabrir sem perder o "está trabalhando".
+// Popup do Extrator Caramujo (v4).
+// Três botões por intenção (Sample, Referência, Vídeo). O estado mora no servidor:
+// fechou e reabriu, continua igual.
 
-const SERVIDOR = 'http://127.0.0.1:8765';
+import {
+  BUILD_ESPERADO, CMD_INSTALAR, idDoVideo, urlLimpa, limparTitulo,
+  pegar, enviar, fmtVelocidade, fmtTempo
+} from './comum.js';
 
-const elTitulo = document.getElementById('titulo');
-const elStatus = document.getElementById('status');
-const barraWrap = document.getElementById('barraWrap');
-const barra = document.getElementById('barra');
-const btnMp3 = document.getElementById('btnMp3');
-const btnMp4 = document.getElementById('btnMp4');
-const selPasta = document.getElementById('pasta');
+const $ = (id) => document.getElementById(id);
+const S = { status: null, videoUrl: null, videoTitulo: '', timer: null, servidorOk: false };
 
-let videoUrl = null;
-let timerBarra = null;
+// ---------------------------------------------------------------- helpers de tela --
+
+function botao(texto, fn, forte = false) {
+  const b = document.createElement('button');
+  b.className = 'peq' + (forte ? ' forte' : '');
+  b.textContent = texto;
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function setAviso(texto, tipo = '', acaoTexto = '', acaoFn = null) {
+  const el = $('aviso');
+  el.replaceChildren();
+  if (!texto) { el.style.display = 'none'; return; }
+  el.className = tipo;
+  el.style.display = 'block';
+  el.append(texto);
+  if (acaoTexto) {
+    el.append(document.createElement('br'));
+    el.append(botao(acaoTexto, acaoFn));
+  }
+}
 
 function setStatus(msg, cls = '') {
-  elStatus.textContent = msg;
-  elStatus.className = cls;
+  $('status').textContent = msg;
+  $('status').className = cls;
 }
 
-function ehVideoYoutube(url) {
+function setAcoes(lista) {
+  const el = $('acoes');
+  el.replaceChildren();
+  for (const a of lista) el.append(botao(a.texto, a.fn, a.forte));
+}
+
+function mostrarBarra(pct) {
+  $('barraWrap').style.display = 'block';
+  $('barra').style.width = Math.max(3, Math.min(100, pct || 0)).toFixed(0) + '%';
+}
+
+function esconderBarra() {
+  $('barraWrap').style.display = 'none';
+  $('barra').style.width = '0%';
+}
+
+function travarBotoes() {
+  const livre = !!(S.videoUrl && S.servidorOk);
+  document.querySelectorAll('[data-perfil]').forEach((b) => { b.disabled = !livre; });
+}
+
+async function copiar(texto, aviso) {
   try {
-    const u = new URL(url);
-    if (!u.hostname.endsWith('youtube.com')) return false;
-    if (u.pathname === '/watch' && u.searchParams.get('v')) return true;
-    return /^\/(shorts|live)\/[\w-]{11}/.test(u.pathname);
+    await navigator.clipboard.writeText(texto);
+    setStatus(aviso || 'Copiado.', 'ok');
   } catch {
-    return false;
+    setStatus('Não consegui copiar. Seleciona e copia na mão: ' + texto, 'erro');
   }
 }
 
-// Barra fictícia: avança rápido no começo e desacelera perto do fim, sem nunca
-// chegar a 100% sozinha (some quando o download termina de verdade). Usa o
-// tempo decorrido desde o início, então ao reabrir o popup ela retoma na posição.
-function animarBarra(inicioMs) {
-  barraWrap.style.display = 'block';
-  clearInterval(timerBarra);
-  const passo = () => {
-    const seg = (Date.now() - inicioMs) / 1000;
-    // curva que tende a ~92% conforme o tempo passa (15s ~ 70%, 40s ~ 88%)
-    const pct = Math.min(92, 100 * (1 - Math.exp(-seg / 18)));
-    barra.style.width = pct.toFixed(0) + '%';
+const copiarInstalar = () => copiar(CMD_INSTALAR, 'Comando copiado. Cola no Terminal.');
+
+function rotuloDestino(id) {
+  const d = S.status && S.status.destinos.find((x) => x.id === id);
+  return d ? d.rotulo : id || '';
+}
+
+function rotuloPerfil(id) {
+  const p = S.status && S.status.perfis.find((x) => x.id === id);
+  return p ? p.rotulo : id || '';
+}
+
+// ------------------------------------------------------------------ renderização --
+
+function textoAtivo(j) {
+  const pct = Math.round(j.pct || 0);
+  if (j.estado === 'atualizando') return j.etapa || 'Atualizando o yt-dlp…';
+  if (j.estado === 'convertendo') return 'Processando: ' + (j.etapa || 'convertendo') + '…';
+  if (j.estado === 'baixando') {
+    let t = `Baixando ${j.etapa || ''} · ${pct}%`;
+    const v = fmtVelocidade(j.velocidade);
+    if (v) t += ' · ' + v;
+    if (j.eta) t += ' · falta ' + fmtTempo(j.eta);
+    return t;
+  }
+  return j.tentativa > 1 ? `Tentando de novo (${j.estrategia})…` : 'Conectando no YouTube…';
+}
+
+function acoesDoErro(j) {
+  const lista = [];
+  const refazer = () => pedir({ url: j.url, perfil: j.perfil, destino: j.destino, titulo: j.titulo, forcar: true });
+  if (j.acao === 'cookies') {
+    lista.push({
+      texto: 'Ligar login do Chrome e tentar de novo', forte: true,
+      fn: async () => {
+        const r = await enviar('/config', { cookies: true });
+        if (!r || !r.ok) { setStatus((r && r.dados.erro) || 'Não consegui mudar a configuração.', 'erro'); return; }
+        refazer();
+      }
+    });
+  } else if (j.acao === 'tentar') {
+    lista.push({ texto: 'Tentar de novo', forte: true, fn: refazer });
+  } else if (j.acao === 'diagnostico') {
+    lista.push({ texto: 'Rodar diagnóstico', forte: true, fn: diagnosticar });
+    lista.push({ texto: 'Tentar de novo', fn: refazer });
+  } else if (j.acao === 'instalar') {
+    lista.push({ texto: 'Copiar comando de instalação', forte: true, fn: copiarInstalar });
+  }
+  return lista;
+}
+
+// Devolve true enquanto tem trabalho.
+function renderizar(p) {
+  const ativo = p.ativo;
+  const fila = p.fila || [];
+
+  const ul = $('fila');
+  ul.replaceChildren();
+  for (const j of fila) {
+    const li = document.createElement('li');
+    const t = document.createElement('span');
+    t.className = 't';
+    t.textContent = (j.titulo || j.url) + ' · na fila';
+    const x = document.createElement('span');
+    x.className = 'x';
+    x.textContent = '✕';
+    x.title = 'Tirar da fila';
+    x.addEventListener('click', () => enviar('/cancelar', { id: j.id }));
+    li.append(t, x);
+    ul.append(li);
+  }
+
+  if (ativo) {
+    $('statusTitulo').textContent = ativo.titulo || '';
+    mostrarBarra(ativo.pct);
+    setStatus(textoAtivo(ativo));
+    setAcoes([{ texto: 'Cancelar', fn: () => enviar('/cancelar', { id: ativo.id }) }]);
+    return true;
+  }
+  if (fila.length) {
+    setStatus('Esperando a vez…');
+    return true;
+  }
+
+  esconderBarra();
+  $('statusTitulo').textContent = '';
+  const r = (p.recentes || [])[0];
+  if (r && r.fim && Date.now() / 1000 - r.fim < 90) {
+    $('statusTitulo').textContent = r.titulo || '';
+    if (r.estado === 'ok') {
+      setStatus(r.texto || 'Pronto.', 'ok');
+      setAcoes([{ texto: 'Mostrar no Finder', forte: true, fn: () => enviar('/mostrar', { id: r.id }) }]);
+    } else if (r.estado === 'erro') {
+      setStatus(r.texto || 'Falhou.', 'erro');
+      setAcoes(acoesDoErro(r));
+    } else {
+      setStatus('Cancelado.');
+      setAcoes([]);
+    }
+  } else {
+    setStatus('');
+    setAcoes([]);
+  }
+  return false;
+}
+
+function offline() {
+  S.servidorOk = false;
+  travarBotoes();
+  esconderBarra();
+  setAviso('Servidor local offline. Roda o instalar.sh e recarrega a extensão.', 'erro',
+    'Copiar comando de instalação', copiarInstalar);
+}
+
+function acompanhar() {
+  clearInterval(S.timer);
+  const passo = async () => {
+    const p = await pegar('/progresso');
+    if (!p || p.ok === false) {
+      clearInterval(S.timer);
+      offline();
+      return;
+    }
+    if (!renderizar(p)) {
+      clearInterval(S.timer);
+      carregarHistorico();
+    }
   };
   passo();
-  timerBarra = setInterval(passo, 400);
+  S.timer = setInterval(passo, 700);
 }
 
-function completarBarra() {
-  clearInterval(timerBarra);
-  barra.style.width = '100%';
-  setTimeout(() => { barraWrap.style.display = 'none'; barra.style.width = '0%'; }, 600);
-}
-
-function pararBarra() {
-  clearInterval(timerBarra);
-  barraWrap.style.display = 'none';
-  barra.style.width = '0%';
-}
-
-function travarBotoes(travar) {
-  btnMp3.disabled = travar;
-  btnMp4.disabled = travar;
-}
-
-// Reflete o estado vindo do background
-function aplicarEstado(estado) {
-  if (!estado) return;
-  if (estado.ativo) {
-    travarBotoes(true);
-    setStatus(estado.texto || 'Trabalhando…');
-    animarBarra(estado.inicio || Date.now());
-  } else if (estado.resultado === 'ok') {
-    travarBotoes(false);
-    completarBarra();
-    setStatus(estado.texto || 'Pronto.', 'ok');
-  } else if (estado.resultado === 'erro') {
-    travarBotoes(false);
-    pararBarra();
-    setStatus(estado.texto || 'Falhou.', 'erro');
+async function carregarHistorico() {
+  const h = await pegar('/historico?n=6');
+  const ul = $('recentes');
+  ul.replaceChildren();
+  if (!h || !h.itens || !h.itens.length) { $('blocoRecentes').style.display = 'none'; return; }
+  $('blocoRecentes').style.display = 'block';
+  for (const e of h.itens) {
+    const li = document.createElement('li');
+    const t = document.createElement('span');
+    t.className = 't';
+    t.textContent = e.titulo || e.url;
+    const sub = document.createElement('span');
+    sub.className = 'sub';
+    sub.textContent = `${rotuloPerfil(e.perfil)} · ${rotuloDestino(e.destino)} · ${(e.data || '').slice(0, 10)}${e.existe ? '' : ' · arquivo não está mais lá'}`;
+    t.append(sub);
+    li.append(t);
+    if (e.existe) li.append(botao('Finder', () => enviar('/mostrar', { arquivo: e.arquivo })));
+    if (e.url) li.append(botao('YouTube', () => chrome.tabs.create({ url: e.url })));
+    ul.append(li);
   }
 }
 
-async function servidorVivo() {
+// ------------------------------------------------------------------------ ações --
+
+async function pedir(corpo) {
+  const r = await enviar('/baixar', corpo);
+  if (!r) { offline(); return; }
+  if (r.dados.codigo === 'origem') { setAviso(r.dados.erro, 'erro'); return; }
+  if (!r.ok) { setStatus(r.dados.erro || 'Servidor respondeu HTTP ' + r.status, 'erro'); setAcoes([]); return; }
+  if (r.dados.ja_existe) {
+    setStatus('Já baixado: ' + (r.dados.titulo || 'esse vídeo'), 'ok');
+    setAcoes([
+      { texto: 'Mostrar no Finder', forte: true, fn: () => enviar('/mostrar', { arquivo: r.dados.arquivo }) },
+      { texto: 'Baixar de novo', fn: () => pedir(Object.assign({}, corpo, { forcar: true })) }
+    ]);
+    return;
+  }
+  chrome.runtime.sendMessage({ type: 'acompanhar' }).catch(() => {});
+  acompanhar();
+}
+
+function baixar(perfil) {
+  if (!S.videoUrl) return;
+  pedir({ url: S.videoUrl, perfil, destino: $('selDestino').value || undefined, titulo: S.videoTitulo });
+}
+
+async function diagnosticar() {
+  const el = $('diag');
+  el.style.display = 'block';
+  el.textContent = 'Testando contra o YouTube… (até 2 min)';
+  const d = await pegar('/diagnostico', 130000);
+  if (!d) { el.textContent = 'O servidor não respondeu ao teste.'; return; }
+  const texto = (d.ok ? 'OK: ' : 'FALHOU: ') + d.resumo + '\n\n' + (d.linhas || []).join('\n');
+  el.textContent = texto;
+  setAcoes([{ texto: 'Copiar relatório', forte: true, fn: () => copiar(texto, 'Relatório copiado.') }]);
+}
+
+async function lerDuracao(tabId) {
   try {
-    const r = await fetch(SERVIDOR + '/status', { signal: AbortSignal.timeout(1500) });
-    return await r.json();
+    const [r] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => { const v = document.querySelector('video'); return v && isFinite(v.duration) ? v.duration : null; }
+    });
+    return r ? r.result : null;
   } catch {
     return null;
   }
 }
 
+function aplicarVideo(url, titulo, duracao) {
+  S.videoUrl = url;
+  S.videoTitulo = titulo || '';
+  const id = idDoVideo(url || '');
+  const thumb = $('thumb');
+  if (id) { thumb.src = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`; thumb.style.display = ''; }
+  else thumb.style.display = 'none';
+  $('titulo').textContent = url ? (titulo || 'Vídeo do link colado') : 'Nenhum vídeo do YouTube nesta aba.';
+  let meta = '';
+  if (duracao) {
+    meta = fmtTempo(duracao);
+    if (duracao > 3600) meta += ' · vídeo longo, vai demorar';
+  }
+  $('meta').textContent = meta;
+  travarBotoes();
+}
+
+// --------------------------------------------------------------------------- init --
+
 async function init() {
-  const { pasta } = await chrome.storage.sync.get('pasta');
-  if (pasta !== undefined) selPasta.value = pasta;
-  selPasta.addEventListener('change', () => chrome.storage.sync.set({ pasta: selPasta.value }));
+  $('lnkOpcoes').addEventListener('click', () => chrome.runtime.openOptionsPage());
+  $('lnkTestar').addEventListener('click', diagnosticar);
+  document.querySelectorAll('[data-perfil]').forEach((b) => b.addEventListener('click', () => baixar(b.dataset.perfil)));
+  $('inpUrl').addEventListener('input', () => aplicarVideo(urlLimpa($('inpUrl').value.trim()), '', null));
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const url = tab ? (tab.url || '') : '';
+  const url = urlLimpa(tab && tab.url ? tab.url : '');
+  aplicarVideo(url, url ? limparTitulo(tab.title) : '', null);
+  if (!url) $('colar').style.display = 'block';
 
-  if (!ehVideoYoutube(url)) {
-    elTitulo.textContent = 'Nenhum vídeo do YouTube aberto nesta aba.';
-    travarBotoes(true);
-    return;
-  }
-  videoUrl = url;
-  elTitulo.textContent = tab.title.replace(/ - YouTube$/, '');
+  const st = await pegar('/status');
+  if (!st) { offline(); return; }
+  if (st.ok === false) { setAviso(st.erro || 'O servidor recusou o pedido.', 'erro'); return; }
+  S.status = st;
+  S.servidorOk = true;
 
-  // Tem download rolando? (reabri o popup no meio)
-  const estado = await chrome.runtime.sendMessage({ type: 'consultarEstado' });
-  if (estado && estado.ativo) {
-    aplicarEstado(estado);
-    return; // não checa servidor; já está trabalhando
+  $('versao').textContent = 'yt-dlp ' + (st.ytdlp_versao || '?') + (st.ytdlp_canal ? ' · ' + st.ytdlp_canal : '');
+  for (const p of st.perfis) {
+    const btn = document.querySelector(`.dl[data-perfil="${p.id}"]`);
+    if (btn) btn.querySelector('small').textContent = `${p.sub.split(' ')[0]} · ${rotuloDestino(p.destino)}`;
   }
-  // Resultado recente (terminou nos últimos 60s enquanto o popup estava fechado)
-  if (estado && estado.resultado && estado.fim && (Date.now() - estado.fim < 60000)) {
-    aplicarEstado(estado);
-    return;
-  }
+  const sel = $('selDestino');
+  sel.replaceChildren(new Option('Padrão de cada botão', ''));
+  for (const d of st.destinos) sel.append(new Option(d.rotulo, d.id));
 
-  // Servidor no ar?
-  const st = await servidorVivo();
-  if (!st) {
-    setStatus('Servidor local offline. Roda o instalar.sh do servidor.', 'erro');
+  if ((st.versao_servidor || 0) < 4) {
+    S.servidorOk = false;
+    setAviso('O servidor instalado é de uma versão antiga. Roda o instalar.sh de novo.', 'erro',
+      'Copiar comando de instalação', copiarInstalar);
   } else if (!st.ytdlp || !st.ffmpeg) {
-    setStatus('Faltam dependências no servidor (yt-dlp/ffmpeg). Roda o instalar.sh.', 'erro');
+    setAviso('Faltam ferramentas no servidor (yt-dlp ou ffmpeg). Roda o instalar.sh.', 'erro',
+      'Copiar comando de instalação', copiarInstalar);
+  } else if (!st.js) {
+    setAviso('Falta o deno no servidor: o YouTube vai recusar (403). Roda o instalar.sh.', 'erro',
+      'Copiar comando de instalação', copiarInstalar);
+  } else if (st.build !== BUILD_ESPERADO) {
+    setAviso('O servidor instalado é de outra versão (' + st.build + '). Roda o instalar.sh pra alinhar.', '',
+      'Copiar comando de instalação', copiarInstalar);
   }
+  travarBotoes();
+
+  if (url && tab.id != null) {
+    const dur = await lerDuracao(tab.id);
+    if (dur) aplicarVideo(url, S.videoTitulo, dur);
+  }
+  acompanhar();
 }
-
-function baixar(formato) {
-  travarBotoes(true);
-  setStatus(formato === 'mp3' ? 'Preparando áudio…' : 'Preparando vídeo…');
-  animarBarra(Date.now());
-  chrome.runtime.sendMessage({ type: 'baixar', formato, url: videoUrl, pasta: selPasta.value });
-}
-
-btnMp3.addEventListener('click', () => baixar('mp3'));
-btnMp4.addEventListener('click', () => baixar('mp4'));
-
-// Atualizações em tempo real enquanto o popup está aberto
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'estado') aplicarEstado(msg.estado);
-});
 
 init();

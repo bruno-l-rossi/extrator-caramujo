@@ -4,66 +4,130 @@
 <meta charset="UTF-8">
 <style>
   :root {
-    --bg: #121212;
-    --card: #1d1d1d;
-    --text: #f2f2f2;
-    --muted: #9a9a9a;
-    --accent: #e8542f;
-    --accent2: #2f9e68;
+    --bg: #121212; --card: #1d1d1d; --linha: #2c2c2c; --text: #f2f2f2; --muted: #a8a8a8;
+    --accent: #e8542f; --accent2: #2f9e68; --azul: #3d7ea6;
+    --erro: #ff7a6b; --ok: #6fd49a; --aviso: #f0b64a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", sans-serif; }
-  body { width: 320px; background: var(--bg); color: var(--text); padding: 16px; }
-  h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 2px; }
-  #titulo { font-size: 12px; color: var(--muted); margin-bottom: 14px; min-height: 15px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .botoes { display: flex; gap: 10px; margin-bottom: 14px; }
-  button.dl {
-    flex: 1; padding: 14px 0; border: none; border-radius: 10px; cursor: pointer;
-    color: #fff; font-size: 14px; font-weight: 700;
-  }
-  button.dl small { display: block; font-weight: 400; font-size: 10px; opacity: 0.8; margin-top: 2px; }
-  #btnMp3 { background: var(--accent2); }
-  #btnMp4 { background: var(--accent); }
+  body { width: 340px; background: var(--bg); color: var(--text); padding: 14px; font-size: 13px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+  .link { color: var(--text); cursor: pointer; text-decoration: underline; font-size: 12px; }
+  .muted { color: var(--muted); }
+
+  #aviso { display: none; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.45;
+           margin-bottom: 10px; background: #33280f; color: var(--aviso); }
+  #aviso.erro { background: #3a1d1a; color: var(--erro); }
+  #aviso button { margin-top: 6px; }
+
+  #video { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  #thumb { width: 96px; height: 54px; border-radius: 6px; object-fit: cover; background: var(--card); flex: none; }
+  #titulo { font-size: 13px; font-weight: 600; line-height: 1.3; display: -webkit-box;
+            -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+  #meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  #colar { display: none; margin-bottom: 12px; }
+  #colar input { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #333;
+                 background: var(--card); color: var(--text); font-size: 12px; }
+
+  .botoes { display: flex; gap: 8px; margin-bottom: 8px; }
+  button.dl { flex: 1; padding: 12px 4px; border: none; border-radius: 10px; cursor: pointer;
+              color: #fff; font-size: 14px; font-weight: 700; }
+  button.dl small { display: block; font-weight: 400; font-size: 11px; opacity: 0.9; margin-top: 3px; }
+  #btnSample { background: var(--accent2); }
+  #btnReferencia { background: var(--azul); }
+  #btnVideo { background: var(--accent); }
   button.dl:hover { filter: brightness(1.15); }
   button.dl:disabled { opacity: 0.4; cursor: default; filter: none; }
-  label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
-  select {
-    width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #333;
-    background: var(--card); color: var(--text); font-size: 12px; margin-bottom: 12px;
-  }
-  #status { font-size: 11px; color: var(--muted); min-height: 14px; }
-  #status.erro { color: #ff7a6b; }
-  #status.ok { color: #6fd49a; }
 
-  #barraWrap {
-    height: 6px; background: #2a2a2a; border-radius: 4px; overflow: hidden;
-    margin-bottom: 8px; display: none;
-  }
-  #barra {
-    height: 100%; width: 0%; border-radius: 4px;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    transition: width 0.4s ease;
-  }
+  details { margin-bottom: 12px; font-size: 12px; }
+  summary { cursor: pointer; color: var(--muted); }
+  details .linha { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  select { flex: 1; padding: 6px; border-radius: 8px; border: 1px solid #333; background: var(--card);
+           color: var(--text); font-size: 12px; }
+
+  button.peq { padding: 6px 10px; border: 1px solid #444; border-radius: 8px; background: var(--card);
+               color: var(--text); font-size: 12px; cursor: pointer; }
+  button.peq:hover { background: #262626; }
+  button.peq.forte { background: var(--text); color: #111; border-color: var(--text); font-weight: 600; }
+  button.peq:disabled { opacity: 0.4; cursor: default; }
+
+  #atual { margin-bottom: 10px; }
+  #statusTitulo { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden;
+                  text-overflow: ellipsis; margin-bottom: 4px; }
+  #barraWrap { height: 6px; background: #2a2a2a; border-radius: 4px; overflow: hidden; margin-bottom: 6px; display: none; }
+  #barra { height: 100%; width: 0%; border-radius: 4px; background: linear-gradient(90deg, var(--accent2), var(--accent));
+           transition: width 0.5s ease; }
+  #status { font-size: 12px; color: var(--muted); line-height: 1.45; min-height: 16px; }
+  #status.erro { color: var(--erro); }
+  #status.ok { color: var(--ok); }
+  #acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  #fila, #recentes { list-style: none; margin-bottom: 10px; }
+  #fila li, #recentes li { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--linha);
+                           font-size: 12px; }
+  #fila .t, #recentes .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fila .x { cursor: pointer; color: var(--muted); padding: 0 4px; }
+  h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 4px 0; text-transform: uppercase; letter-spacing: 0.4px; }
+  #recentes .sub { display: block; color: var(--muted); font-size: 11px; }
+
+  #diag { display: none; white-space: pre-wrap; word-break: break-word; font: 11px/1.4 ui-monospace, Menlo, monospace;
+          background: var(--card); border-radius: 8px; padding: 8px; margin-bottom: 10px; max-height: 180px; overflow: auto; }
+  footer { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
-  <h1>EXTRATOR CARAMUJO</h1>
-  <div id="titulo">Carregando…</div>
+  <header>
+    <h1>EXTRATOR CARAMUJO</h1>
+    <a class="link" id="lnkOpcoes">Opções</a>
+  </header>
+
+  <div id="aviso"></div>
+
+  <div id="video">
+    <img id="thumb" alt="">
+    <div>
+      <div id="titulo">Carregando…</div>
+      <div id="meta"></div>
+    </div>
+  </div>
+  <div id="colar"><input id="inpUrl" type="text" placeholder="Cola aqui um link do YouTube"></div>
 
   <div class="botoes">
-    <button id="btnMp3" class="dl">Áudio<small>MP3 · alta qualidade</small></button>
-    <button id="btnMp4" class="dl">Vídeo<small>MP4</small></button>
+    <button class="dl" id="btnSample" data-perfil="sample" disabled>Sample<small>WAV</small></button>
+    <button class="dl" id="btnReferencia" data-perfil="referencia" disabled>Referência<small>MP3</small></button>
+    <button class="dl" id="btnVideo" data-perfil="video" disabled>Vídeo<small>MP4</small></button>
   </div>
 
-  <label for="pasta">Salvar em</label>
-  <select id="pasta">
-    <option value="">Downloads</option>
-    <option value="Samples/">Samples</option>
-    <option value="Inspiracoes/">Inspiration</option>
-  </select>
+  <details id="mais">
+    <summary>Mais opções</summary>
+    <div class="linha">
+      <label for="selDestino" class="muted">Salvar em</label>
+      <select id="selDestino"></select>
+    </div>
+    <div class="linha">
+      <button class="peq" id="btnMax" data-perfil="video_max" disabled>Vídeo na máxima qualidade (4K, AV1…)</button>
+    </div>
+  </details>
 
-  <div id="barraWrap"><div id="barra"></div></div>
-  <div id="status"></div>
-  <script src="popup.js"></script>
+  <div id="atual">
+    <div id="statusTitulo"></div>
+    <div id="barraWrap"><div id="barra"></div></div>
+    <div id="status"></div>
+    <div id="acoes"></div>
+  </div>
+
+  <ul id="fila"></ul>
+  <pre id="diag"></pre>
+
+  <div id="blocoRecentes" style="display:none">
+    <h2>Recentes</h2>
+    <ul id="recentes"></ul>
+  </div>
+
+  <footer>
+    <span id="versao"></span>
+    <a class="link" id="lnkTestar">Testar</a>
+  </footer>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>

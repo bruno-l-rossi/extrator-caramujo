@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Extrator Caramujo",
-  "description": "Baixa o áudio (MP3) ou o vídeo (MP4) do YouTube aberto na aba, via servidor local.",
-  "version": "2.1.0",
-  "permissions": ["storage", "activeTab", "tabs"],
+  "description": "Baixa áudio (WAV, MP3) ou vídeo (MP4) do YouTube pro estúdio, via servidor local.",
+  "version": "4.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnWRxRDJrOslOTKCXu66d3kfF3R2mgJgiaTSxL4xkCYSOHngKChSD0jzkV+z9B66pua7JSbRn3C/Old/XkXXS/lYFaGMDW4KmFd9WmI3q36Qi817gNiBk+5qOXINEH8Cs5euYbvdcJtrdxphc5QABle3ef1j/AUDXr61Krf0IY7xHlyRhwjmGWKq2vZDmTir6nS3xmHP9DLelLpmi6Ub7x+8xkm95C1Z+yDQN5Yjt7nKzoldxtEljEJDbU1SKQDwp2RmixOEomU52E0JnNkC3RHAPoKz5VtIRNIC0Lw4aoWT6e+ugreVFbwYkhgiFrUz+jmVTC5jpT/u/hmhhiw0dUwIDAQAB",
+  "permissions": ["storage", "alarms", "notifications", "contextMenus", "activeTab", "scripting"],
   "host_permissions": [
     "http://127.0.0.1:8765/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
@@ -16,6 +18,21 @@
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "opcoes.html",
+  "commands": {
+    "baixar-sample": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Baixar como sample (WAV)"
+    },
+    "baixar-referencia": {
+      "suggested_key": { "default": "Alt+Shift+R" },
+      "description": "Baixar como referência (MP3)"
+    },
+    "baixar-video": {
+      "suggested_key": { "default": "Alt+Shift+V" },
+      "description": "Baixar vídeo pra edição (MP4)"
     }
   },
   "icons": {

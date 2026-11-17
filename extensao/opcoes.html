@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Extrator Caramujo: opções</title>
+<style>
+  :root { --bg: #121212; --card: #1d1d1d; --linha: #2c2c2c; --text: #f2f2f2; --muted: #a8a8a8;
+          --accent2: #2f9e68; --erro: #ff7a6b; --ok: #6fd49a; }
+  * { box-sizing: border-box; font-family: -apple-system, "Segoe UI", sans-serif; }
+  body { background: var(--bg); color: var(--text); margin: 0; padding: 28px; font-size: 14px; }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 18px; }
+  h2 { font-size: 14px; margin: 26px 0 8px; padding-top: 14px; border-top: 1px solid var(--linha); }
+  p, label { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  input[type=text], select { padding: 7px 9px; border-radius: 8px; border: 1px solid #333; background: var(--card);
+                             color: var(--text); font-size: 13px; }
+  .linha { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+  .linha input[type=text] { flex: 1; min-width: 0; }
+  .linha .rot { flex: 0 0 140px; }
+  .linha label { flex: 0 0 210px; color: var(--text); }
+  button { padding: 7px 12px; border-radius: 8px; border: 1px solid #444; background: var(--card); color: var(--text);
+           font-size: 13px; cursor: pointer; }
+  button:hover { background: #262626; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button.forte { background: var(--accent2); border-color: var(--accent2); font-weight: 600; }
+  #msg { margin-left: 10px; font-size: 13px; }
+  #msg.erro { color: var(--erro); }
+  #msg.ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Extrator Caramujo · Opções</h1>
+
+  <h2>Pastas</h2>
+  <p>Cada pasta aparece na lista "Salvar em" do popup. Tem que ficar dentro da tua pasta de usuário (ou em /Volumes).</p>
+  <div id="pastas"></div>
+  <div class="linha"><button id="btnAddPasta">Adicionar pasta</button></div>
+
+  <h2>O que cada botão faz</h2>
+  <div id="perfis"></div>
+  <div class="linha">
+    <label for="selRes">Resolução do botão Vídeo</label>
+    <select id="selRes">
+      <option value="720">até 720p</option>
+      <option value="1080">até 1080p (padrão)</option>
+      <option value="1440">até 1440p</option>
+      <option value="2160">até 4K</option>
+      <option value="0">sem limite</option>
+    </select>
+  </div>
+  <p>O botão Vídeo escolhe H.264, que o Final Cut abre sem reclamar. A opção de máxima qualidade (em "Mais opções", no popup) pega o que o YouTube tiver de melhor, inclusive AV1.</p>
+
+  <h2>Login do Chrome (último recurso contra erro 403)</h2>
+  <div class="linha">
+    <input type="checkbox" id="chkCookies">
+    <label for="chkCookies" style="flex:1">Usar o login do Chrome quando o YouTube recusar o download</label>
+  </div>
+  <p>O macOS vai perguntar se o python pode acessar "Chrome Safe Storage": clica em Permitir sempre. É também o que libera vídeo com restrição de idade.</p>
+
+  <h2>yt-dlp</h2>
+  <div class="linha"><span id="versao"></span><button id="btnUpdate">Atualizar agora</button></div>
+
+  <h2>Atalhos de teclado</h2>
+  <p>Sample: Option+Shift+S. Referência: Option+Shift+R. Vídeo: Option+Shift+V. Baixam o vídeo da aba aberta sem abrir o popup. Também tem o clique direito na página ou num link do YouTube.</p>
+  <div class="linha"><button id="btnAtalhos">Mudar atalhos</button></div>
+
+  <div class="linha" style="margin-top:28px">
+    <button class="forte" id="btnSalvar">Salvar</button><span id="msg"></span>
+  </div>
+</main>
+<script type="module" src="opcoes.js"></script>
+</body>
+</html>

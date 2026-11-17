@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Modelo: o instalar.sh troca __HOME__ pelo teu home antes de instalar. -->
 <plist version="1.0">
 <dict>
   <key>Label</key>
@@ -7,20 +8,28 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>/Users/bruno-l-rossi/.caramujo/servidor_caramujo.py</string>
+    <string>-u</string>
+    <string>__HOME__/.caramujo/servidor_caramujo.py</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
-  <key>StandardErrorPath</key>
-  <string>/Users/bruno-l-rossi/.caramujo/servidor.log</string>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <!-- O servidor escreve o próprio log em servidor.log. Aqui só cai o que o Python cuspir ao morrer. -->
   <key>StandardOutPath</key>
-  <string>/Users/bruno-l-rossi/.caramujo/servidor.log</string>
+  <string>/dev/null</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/.caramujo/servidor.err</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/opt/homebrew/bin:/usr/local/bin:/Users/bruno-l-rossi/.local/bin:/usr/bin:/bin</string>
+    <string>/opt/homebrew/bin:/usr/local/bin:__HOME__/.deno/bin:/usr/bin:/bin</string>
+    <key>LANG</key>
+    <string>pt_BR.UTF-8</string>
+    <key>PYTHONIOENCODING</key>
+    <string>utf-8</string>
   </dict>
 </dict>
 </plist>
